@@ -707,13 +707,22 @@
         }
         return true;
     }
-    function messageFrom(body) {
-        if (body && typeof body === "object" && "error" in body) {
-            const message = body.error;
-            if (typeof message === "string" && message.trim() !== "")
-                return message;
+    function messageFrom(body, status) {
+        let message = "";
+        let code = "";
+        if (body && typeof body === "object") {
+            const record = body;
+            if (typeof record.error === "string")
+                message = record.error.trim();
+            if (typeof record.code === "string")
+                code = record.code.trim();
         }
-        return "這次沒有產生出行程。可以回到上一步再試，或先改用示範資料。";
+        if (message === "") {
+            if (status > 0)
+                return "這次沒有產生出行程（HTTP " + String(status) + "）。可以回到上一步再試，或先改用示範資料。";
+            return "這次沒有產生出行程。可以回到上一步再試，或先改用示範資料。";
+        }
+        return code !== "" ? message + "（" + code + "）" : message;
     }
     function normalizePlan(plan) {
         if (!Array.isArray(plan.accommodations))
@@ -1587,9 +1596,9 @@
             body: JSON.stringify(payload)
         }).then(function (response) {
             return response.json().then(function (body) {
-                return { ok: response.ok, body: body };
+                return { ok: response.ok, status: response.status, body: body };
             }, function () {
-                return { ok: response.ok, body: null };
+                return { ok: response.ok, status: response.status, body: null };
             });
         }).then(function (result) {
             const body = result.body && typeof result.body === "object"
@@ -1597,7 +1606,7 @@
                 : null;
             const plan = body ? body.plan : null;
             if (!result.ok || !isTripPlan(plan)) {
-                return { ok: false, plan: null, usedFallback: false, error: messageFrom(result.body) };
+                return { ok: false, plan: null, usedFallback: false, error: messageFrom(result.body, result.status) };
             }
             return {
                 ok: true,

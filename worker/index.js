@@ -1019,7 +1019,7 @@ async function requestModel(apiKey, contents, model) {
         "Content-Type": "application/json",
         "x-goog-api-key": apiKey
       },
-      redirect: "error",
+      redirect: "manual",
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents: [{ role: "user", parts: [{ text: contents }] }],
@@ -1034,6 +1034,11 @@ async function requestModel(apiKey, contents, model) {
       signal: controller.signal
     }
   ).then(async function (response) {
+    if (response.status >= 300 && response.status < 400) {
+      const error = new Error("上游要求重新導向（HTTP " + String(response.status) + "），已停止跟隨。");
+      error.status = response.status;
+      throw error;
+    }
     const raw = await response.text();
     let parsed = null;
     if (raw !== "") {
@@ -1058,12 +1063,32 @@ async function requestModel(apiKey, contents, model) {
   return withTimeout(promise, REQUEST_TIMEOUT_MS, controller);
 }
 
+function publicErrorDetail(error) {
+  const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  const cleaned = message
+    .replace(/AIza[0-9A-Za-z_-]{10,}/g, "[redacted]")
+    .replace(/Bearer\s+\S+/gi, "Bearer [redacted]")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (cleaned === "") return "";
+  return cleaned.length > 240 ? cleaned.slice(0, 240) + "…" : cleaned;
+}
+
 function asPlanError(error) {
   logPlanError("plan error object:", error);
   if (error && KNOWN_CODES.has(error.code)) return error;
   const classified = classifyGeminiError(error);
-  if (classified) return classified;
-  return fail("unavailable", "AI 服務沒有完成這次行程。可以再試一次，或先改用示範資料。", statusOf(error));
+  const detail = publicErrorDetail(error);
+  if (classified) {
+    if (detail !== "" && classified.message.indexOf(detail) === -1) {
+      return fail(classified.code, classified.message + " " + detail, statusOf(classified) || statusOf(error));
+    }
+    return classified;
+  }
+  const message = detail !== ""
+    ? "AI 服務沒有完成這次行程：" + detail
+    : "AI 服務沒有完成這次行程。可以再試一次，或先改用示範資料。";
+  return fail("unavailable", message, statusOf(error));
 }
 
 function wait(ms) {

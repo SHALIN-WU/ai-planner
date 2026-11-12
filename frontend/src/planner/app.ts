@@ -670,12 +670,19 @@
     return true;
   }
 
-  function messageFrom(body: unknown): string {
-    if (body && typeof body === "object" && "error" in body) {
-      const message = (body as { error: unknown }).error;
-      if (typeof message === "string" && message.trim() !== "") return message;
+  function messageFrom(body: unknown, status: number): string {
+    let message = "";
+    let code = "";
+    if (body && typeof body === "object") {
+      const record = body as { error?: unknown; code?: unknown };
+      if (typeof record.error === "string") message = record.error.trim();
+      if (typeof record.code === "string") code = record.code.trim();
     }
-    return "這次沒有產生出行程。可以回到上一步再試，或先改用示範資料。";
+    if (message === "") {
+      if (status > 0) return "這次沒有產生出行程（HTTP " + String(status) + "）。可以回到上一步再試，或先改用示範資料。";
+      return "這次沒有產生出行程。可以回到上一步再試，或先改用示範資料。";
+    }
+    return code !== "" ? message + "（" + code + "）" : message;
   }
 
   function normalizePlan(plan: TripPlan): void {
@@ -1535,9 +1542,9 @@
       body: JSON.stringify(payload)
     }).then(function (response) {
       return response.json().then(function (body: unknown) {
-        return { ok: response.ok, body: body };
+        return { ok: response.ok, status: response.status, body: body };
       }, function () {
-        return { ok: response.ok, body: null };
+        return { ok: response.ok, status: response.status, body: null };
       });
     }).then(function (result): ChunkReply {
       const body = result.body && typeof result.body === "object"
@@ -1545,7 +1552,7 @@
         : null;
       const plan = body ? body.plan : null;
       if (!result.ok || !isTripPlan(plan)) {
-        return { ok: false, plan: null, usedFallback: false, error: messageFrom(result.body) };
+        return { ok: false, plan: null, usedFallback: false, error: messageFrom(result.body, result.status) };
       }
       return {
         ok: true,

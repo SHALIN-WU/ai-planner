@@ -150,7 +150,7 @@
             renderError(state.error) +
             '<div class="actions"><button type="button" class="btn primary" data-action="next">下一步</button></div>' +
             '</div>' +
-            '<figure class="hero-visual"><img src="images/travel-planner-hero-v2.svg?v=20261112c" alt="山景、寺院、列車與旅行路線的插畫" width="720" height="540"></figure>' +
+            '<figure class="hero-visual"><img src="images/travel-planner-hero-v2.svg?v=20261112d" alt="山景、寺院、列車與旅行路線的插畫" width="720" height="540"></figure>' +
             "</section>";
     }
     function renderCurrencyOptions(current) {
