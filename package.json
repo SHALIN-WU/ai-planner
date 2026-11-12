@@ -1,0 +1,17 @@
+{
+  "name": "ai-planner",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server/index.js",
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@google/genai": "^2.32.0",
+    "dotenv": "^18.0.9",
+    "express": "^4.22.3"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

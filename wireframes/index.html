@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>旅遊行程管理系統 Wireframe</title>
+  <link rel="stylesheet" href="css/wireframe.css">
+</head>
+<body>
+  <div class="board">
+    <header class="board-head">
+      <div>
+        <p class="kicker">第一版 · 三個畫面</p>
+        <h1>旅遊行程管理系統 Wireframe</h1>
+        <p class="deck">依輸入、清單、確認三個畫面，以及天數分配、搜尋、勾選、標點的流程畫出。勾選不另開一頁。介面文字為繁體中文，沒有帳號。</p>
+      </div>
+      <nav class="board-nav" aria-label="wireframe 章節">
+        <a href="#flow">流程</a>
+        <a href="#screen-1">畫面一</a>
+        <a href="#screen-2">畫面二</a>
+        <a href="#screen-3">畫面三</a>
+        <a href="#transitions">流轉</a>
+        <a href="../frontend/index.html">開啟網頁</a>
+      </nav>
+    </header>
+
+    <section class="section" id="flow">
+      <h2>使用流程</h2>
+      <p class="intro">搜尋與確認天數都留在畫面一。勾選在畫面二。地圖只出現在畫面三，而且只標已勾選項目。</p>
+      <div class="flow">
+        <article>
+          <p class="frame-no">01</p>
+          <strong>輸入目的地與天數</strong>
+          <p>畫面一。順序就是旅行順序。總天數必填。各目的地天數可留空。</p>
+        </article>
+        <article>
+          <p class="frame-no">02</p>
+          <strong>確認天數分配</strong>
+          <p>仍在畫面一。全空白才由系統分配，並停下來等確認。已自行填妥且加總正確就直接搜尋。</p>
+        </article>
+        <article>
+          <p class="frame-no">03</p>
+          <strong>依目的地搜尋</strong>
+          <p>仍在畫面一。逐個目的地先景點、再美食。0 天的目的地略過。</p>
+        </article>
+        <article>
+          <p class="frame-no">04</p>
+          <strong>勾選景點與美食</strong>
+          <p>畫面二。兩個分頁，預設都不勾。分頁上顯示該分頁已勾數量。</p>
+        </article>
+        <article>
+          <p class="frame-no">05</p>
+          <strong>確認頁與地圖</strong>
+          <p>畫面三。已選清單與同一張地圖。景點、美食兩種標記。</p>
+        </article>
+      </div>
+      <ul class="branch">
+        <li>驗證失敗：停在畫面一，指出要改的欄位。</li>
+        <li>清單頁與確認頁都可以回到畫面一。重新產生會取代清單並清空勾選。</li>
+        <li>重新整理後，條件、清單與勾選仍在。瀏覽器只留這一趟。</li>
+        <li>某組搜尋失敗只重試該組。沒有座標的已選項留在清單，標示「未能標上地圖」。</li>
+      </ul>
+    </section>
+
+    <section class="section" id="screen-1">
+      <h2>畫面一 · 輸入條件</h2>
+      <p class="intro">同一個畫面有四個狀態：填寫、錯誤、待確認分配、搜尋中。搜尋結束才進入畫面二。</p>
+
+      <article class="frame" id="s1a">
+        <header class="frame-label">
+          <h3>1A 填寫條件</h3>
+          <a class="open" href="../frontend/index.html">開啟這個畫面</a>
+        </header>
+        <div class="frame-body">
+          <div class="screen" aria-label="輸入條件 wireframe">
+            <div class="bar"><strong>安排這一趟</strong><span class="tiny">尚無清單時，右側沒有動作</span></div>
+            <p class="tiny">依旅行順序填入目的地與總天數。</p>
+            <div class="cols">
+              <div class="block">旅行名稱<br>可空白。有填才出現在清單頁與確認頁</div>
+              <div class="block">總天數<br>必填，正整數</div>
+            </div>
+            <div class="block">
+              <div class="dest"><span>1</span><span>上</span><span>下</span><span class="cell">金澤</span><span class="cell">未填</span><span>刪除</span></div>
+              <div class="dest" style="margin-top:4px"><span>2</span><span>上</span><span>下</span><span class="cell">富山</span><span class="cell">未填</span><span>刪除</span></div>
+              <p class="tiny">可新增、刪除、調整順序。天數欄位可全部留空。</p>
+            </div>
+            <div class="actions">
+              <span class="ghost">新增目的地</span>
+              <span class="ghost">填入範例：金澤、富山、高山、加賀，7 天</span>
+            </div>
+            <p class="tiny">各目的地天數都留空時，按下產生後會先分配天數，確認後才開始搜尋。</p>
+            <div class="actions"><span class="ghost primary">產生景點與美食清單</span></div>
+          </div>
+          <ol class="note">
+            <li>至少一個目的地，空白列要補名稱或刪除。</li>
+            <li>天數全空：按產生後不搜尋，改進 1C。</li>
+            <li>每天數都已填、加總等於總天數：直接進 1D。</li>
+            <li>只填一部分，或加總不同：停在 1B。</li>
+          </ol>
+        </div>
+      </article>
+
+      <article class="frame" id="s1b">
+        <header class="frame-label"><h3>1B 停在本頁並指出錯誤</h3></header>
+        <div class="frame-body">
+          <div class="screen">
+            <div class="block bad">請為每個目的地填寫天數，或全部清空改由系統分配</div>
+            <div class="cols">
+              <div class="block">旅行名稱</div>
+              <div class="block bad">總天數<br>總天數須為正整數</div>
+            </div>
+            <div class="dest"><span>1</span><span>上</span><span>下</span><span class="cell bad">請填寫目的地名稱</span><span class="cell bad">天數須為非負整數</span><span>刪除</span></div>
+            <p class="tiny">各目的地天數加總必須等於總天數（目前加總 8，總天數 7）</p>
+          </div>
+          <ol class="note">
+            <li>少於一個目的地、總天數不是正整數、只填部分天數、加總不一致，都不開始搜尋。</li>
+            <li>0 天可以填，但加總仍要等於總天數。排序在後的目的地可以是 0 天。</li>
+          </ol>
+        </div>
+      </article>
+
+      <article class="frame" id="s1c">
+        <header class="frame-label"><h3>1C 系統分配，等待確認</h3></header>
+        <div class="frame-body">
+          <div class="screen">
+            <div class="block">請確認分配：金澤 2 天、富山 2 天、高山 2 天、加賀 1 天。加總 7 天。</div>
+            <div class="dest"><span>1</span><span></span><span></span><span class="cell">金澤</span><span class="cell">2</span><span></span></div>
+            <div class="dest" style="margin-top:4px"><span>2</span><span></span><span></span><span class="cell">富山</span><span class="cell">2</span><span></span></div>
+            <div class="dest" style="margin-top:4px"><span>3</span><span></span><span></span><span class="cell">高山</span><span class="cell">2</span><span></span></div>
+            <div class="dest" style="margin-top:4px"><span>4</span><span></span><span></span><span class="cell">加賀</span><span class="cell">1</span><span></span></div>
+            <div class="actions">
+              <span class="ghost primary">確認並開始搜尋</span>
+              <span class="ghost">清空天數，改為自行分配</span>
+            </div>
+          </div>
+          <ol class="note">
+            <li>基本天數是總天數除以目的地數的商，餘數分給前面的目的地。</li>
+            <li>7 天、4 個目的地是 2、2、2、1。3 天、4 個目的地是 1、1、1、0。</li>
+            <li>確認前可以改數字。改完後加總仍須等於總天數，否則停在本頁。</li>
+          </ol>
+        </div>
+      </article>
+
+      <article class="frame" id="s1d">
+        <header class="frame-label"><h3>1D 搜尋進行中</h3></header>
+        <div class="frame-body">
+          <div class="screen">
+            <div class="bar"><strong>安排這一趟</strong><span class="tiny">金澤 2天 → 富山 2天 → 高山 2天 → 加賀 1天</span></div>
+            <div class="block"><strong>正在搜尋：金澤 · 美食</strong></div>
+            <div class="mini">完成　金澤 · 景點</div>
+            <div class="mini">搜尋中　金澤 · 美食</div>
+            <div class="mini">等待　富山 · 景點</div>
+            <div class="mini">等待　富山 · 美食</div>
+            <div class="mini">略過　加賀 · 未分配天數</div>
+          </div>
+          <ol class="note">
+            <li>進度要看得出目前是哪一個目的地，以及正在搜尋景點或美食。</li>
+            <li>有天數的目的地，景點與美食各一步。0 天不搜尋。</li>
+            <li>結束後進入畫面二。若是重新產生，舊清單與勾選在新結果回來時才被取代、清空。</li>
+          </ol>
+        </div>
+      </article>
+    </section>
+
+    <section class="section" id="screen-2">
+      <h2>畫面二 · 清單</h2>
+      <p class="intro">景點與美食分頁。項目依目的地分組，組的順序與旅行順序相同。每一列預設不勾選。</p>
+
+      <article class="frame" id="s2a">
+        <header class="frame-label">
+          <h3>2A 景點分頁</h3>
+          <a class="open" href="../frontend/index.html?demo=example#list">開啟範例清單</a>
+        </header>
+        <div class="frame-body">
+          <div class="screen">
+            <div class="bar">
+              <strong>北陸與飛驒</strong>
+              <span class="actions"><span class="tiny">已選 0 項</span><span class="ghost">修改條件</span><span class="ghost primary">前往確認頁</span></span>
+            </div>
+            <p class="tiny">金澤 2天 → 富山 2天 → 高山 2天 → 加賀 1天</p>
+            <div class="tabs"><span class="on">景點 0</span><span>美食 0</span></div>
+            <div class="block">
+              <strong>01 金澤 · 2 天 · 6 項</strong>
+              <div class="row">
+                <strong>□ 兼六園</strong>
+                <p class="tiny">目的地　金澤</p>
+                <p class="tiny">為什麼適合　對應金澤與 2 天的短文</p>
+                <p class="tiny">景點營業時間　3月至10月 7:00–17:00…</p>
+                <p class="tiny">要不要預約　不需要／需要／來源未記載</p>
+                <p class="tiny">資料來源　標題＋可開啟連結，至少一筆</p>
+                <p class="tiny">擷取日期　YYYY-MM-DD</p>
+              </div>
+            </div>
+            <div class="block"><strong>02 富山 · 2 天</strong><p class="tiny">下一組接在後面，不另開頁。</p></div>
+          </div>
+          <ol class="note">
+            <li>分頁數字是已勾選數量，不是候選數量。取消勾選後數字減少。</li>
+            <li>每一列都要能決定去不去：為什麼適合、營業時間、預約、來源、擷取日期。</li>
+            <li>摘要沒寫營業時間或預約時，該欄是「來源未記載」，這一列仍算完整。</li>
+            <li>勾選寫進瀏覽器。重新整理後仍在。</li>
+          </ol>
+        </div>
+      </article>
+
+      <article class="frame" id="s2b">
+        <header class="frame-label"><h3>2B 美食分頁</h3></header>
+        <div class="frame-body">
+          <div class="screen">
+            <div class="tabs"><span>景點 2</span><span class="on">美食 1</span></div>
+            <div class="block">
+              <strong>01 金澤 · 2 天 · 4 項</strong>
+              <div class="row">
+                <strong>□ 近江町市場海鮮丼</strong>
+                <p class="tiny">欄位與景點相同。營業時間的欄名改為「美食營業時間」。</p>
+              </div>
+            </div>
+          </div>
+          <ol class="note">
+            <li>兩張清單同一次產生。景點目標是每天 3 個、最多 8 個；美食每天 2 個、最多 6 個。</li>
+            <li>不夠就只列找到的項目，不補沒有來源的列。多於目標就取到目標為止。</li>
+          </ol>
+        </div>
+      </article>
+
+      <article class="frame" id="s2c">
+        <header class="frame-label">
+          <h3>2C 沒有候選的三種狀態</h3>
+          <a class="open" href="../frontend/index.html?demo=exceptions#list">開啟例外狀態</a>
+        </header>
+        <div class="frame-body">
+          <div class="screen">
+            <div class="status"><strong>富山 · 景點</strong><br>查無資料</div>
+            <div class="status"><strong>高山 · 景點</strong><br>搜尋失敗<br><span class="ghost">只重試此組</span></div>
+            <div class="status"><strong>加賀 · 0 天</strong><br>這段未分配天數，沒有候選</div>
+          </div>
+          <ol class="note">
+            <li>狀態掛在「某目的地的景點」或「某目的地的美食」，不是整趟失敗。</li>
+            <li>重試只重做那一組。其他目的地已成功的項目與勾選保留。</li>
+            <li>0 天的目的地兩個分頁都保留在原順序，不發出搜尋。</li>
+          </ol>
+        </div>
+      </article>
+    </section>
+
+    <section class="section" id="screen-3">
+      <h2>畫面三 · 確認</h2>
+      <p class="intro">左欄是已選清單，右欄是地圖。窄螢幕改成清單在上、地圖在下。地圖使用 Leaflet。底圖資料來自 OpenStreetMap，由 OpenFreeMap 提供。</p>
+
+      <article class="frame" id="s3a">
+        <header class="frame-label">
+          <h3>3A 已選清單與地圖</h3>
+          <a class="open" href="../frontend/index.html?demo=exceptions#confirm">開啟有標記的確認頁</a>
+        </header>
+        <div class="frame-body">
+          <div class="screen">
+            <div class="bar">
+              <strong>北陸與飛驒</strong>
+              <span class="actions"><span class="ghost">返回清單</span><span class="ghost">修改條件</span></span>
+            </div>
+            <div class="split">
+              <div>
+                <div class="block">
+                  <strong>金澤 · 2 天</strong>
+                  <div class="row">
+                    <span class="ghost">景點</span>
+                    <strong>兼六園</strong>
+                    <p class="tiny">營業時間、要不要預約、資料來源</p>
+                  </div>
+                  <div class="row">
+                    <span class="ghost">景點</span> <span class="ghost">未能標上地圖</span>
+                    <strong>主計町茶屋街</strong>
+                    <p class="tiny">留在清單，地圖不放標記</p>
+                  </div>
+                </div>
+              </div>
+              <a class="map" href="../frontend/index.html?demo=exceptions#confirm" aria-label="開啟有標記的地圖">
+                <span class="dot" style="left:18%;top:42%">景</span>
+                <span class="dot" style="left:62%;top:28%">食</span>
+                <div class="popup">
+                  <strong>兼六園</strong>
+                  <p class="tiny">景點 · 金澤</p>
+                  <p class="tiny">營業時間、要不要預約、資料來源</p>
+                </div>
+                <p class="tiny" style="position:absolute;left:8px;top:8px">開啟地圖</p>
+              </a>
+            </div>
+          </div>
+          <ol class="note">
+            <li>已選清單只含兩個分頁勾過的項目，依目的地分組，並標明是景點或美食。</li>
+            <li>確認頁不重複「為什麼適合」。欄位是名稱、營業時間、要不要預約、資料來源。</li>
+            <li>點標記看得到名稱、營業時間、要不要預約、資料來源。</li>
+            <li>取消勾選後再回確認頁，該項目從清單與地圖消失。</li>
+          </ol>
+        </div>
+      </article>
+
+      <article class="frame" id="s3b">
+        <header class="frame-label">
+          <h3>3B 尚未勾選</h3>
+          <a class="open" href="../frontend/index.html?demo=example#confirm">開啟空的確認頁</a>
+        </header>
+        <div class="frame-body">
+          <div class="screen">
+            <div class="split">
+              <div class="block"><strong>尚未勾選景點或美食</strong><br><span class="ghost primary">回到清單勾選</span></div>
+              <div class="map"><p class="tiny" style="padding:8px">地圖仍在，沒有標記</p></div>
+            </div>
+          </div>
+          <ol class="note">
+            <li>可以沒勾任何項目就打開確認頁。</li>
+            <li>地圖保持空白標記，並提供回到清單的動作。</li>
+          </ol>
+        </div>
+      </article>
+    </section>
+
+    <section class="section" id="transitions">
+      <h2>畫面流轉</h2>
+      <p class="intro">實作頁面用同一個網址切換三個畫面。清單結果目前是預覽資料，版面與狀態依這份 wireframe；接上後端後，欄位結構不變。</p>
+      <div class="transition">
+        <div><span>從</span><span>動作</span><span>到</span></div>
+        <div><span>1A</span><span>天數全空，按下產生</span><span>1C，填入分配結果</span></div>
+        <div><span>1A</span><span>天數已填且加總正確</span><span>1D，然後進入 2A</span></div>
+        <div><span>1A / 1C</span><span>驗證失敗</span><span>停在 1B</span></div>
+        <div><span>1C</span><span>確認並開始搜尋</span><span>1D → 2A，勾選清空</span></div>
+        <div><span>2A / 2B</span><span>勾選或取消</span><span>留在清單，分頁數字改變</span></div>
+        <div><span>2</span><span>前往確認頁</span><span>3A；若沒勾則是 3B</span></div>
+        <div><span>2 或 3</span><span>修改條件後重新產生</span><span>1C 或 1D，新清單取代舊清單</span></div>
+        <div><span>2C</span><span>只重試此組</span><span>該組改為清單、查無資料，或仍失敗</span></div>
+        <div><span>3A</span><span>返回清單並取消勾選</span><span>再進 3A 時項目與標記都消失</span></div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ES2020",
+    "lib": ["ES2020", "DOM"],
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "rootDir": "frontend/src",
+    "outDir": "frontend/js",
+    "noEmitOnError": true,
+    "skipLibCheck": true,
+    "newLine": "lf"
+  },
+  "include": ["frontend/src/model.ts", "frontend/src/planner/**/*.ts"]
+}

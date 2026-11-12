@@ -1,0 +1,15 @@
+name = "ai-planner"
+main = "worker/index.js"
+compatibility_date = "2026-11-12"
+
+[vars]
+GEMINI_MODEL = "gemini-3.8-flash"
+GEMINI_FALLBACK_MODEL = "gemini-3.6-flash"
+DAILY_LIMIT = "30"
+# 只有這些來源可以呼叫。GitHub Pages 的來源是 https://帳號.github.io，不含專案路徑。
+ALLOWED_ORIGINS = "http://localhost:3000,http://127.0.0.1:3000,https://shalin-wu.github.io"
+
+# 建立 KV 後，把 id 換成指令印出的那組，再 deploy。
+[[kv_namespaces]]
+binding = "PLAN_USAGE"
+id = "e34ebf181c3340d5a6e2463ffeb1e4a6"
