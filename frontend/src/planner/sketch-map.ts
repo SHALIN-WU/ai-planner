@@ -5,7 +5,7 @@
   const VIEW_W = 1200;
   const VIEW_H = 820;
   const CONTENT = { x: 32, y: 108, w: 1136, h: 684 };
-  const LEGEND = { x: 948, y: 612, w: 224, h: 180 };
+  const LEGEND = { x: 930, y: 548, w: 242, h: 244 };
   const CLUSTER_KM = 40;
 
   const DAY_COLORS: { fill: string; stroke: string; ink: string }[] = [
@@ -51,11 +51,23 @@
     { key: "福岡", lat: 33.5904, lng: 130.4017 }
   ];
 
-  type SketchIcon = "spot" | "shrine" | "food" | "shop" | "stay" | "ride";
+  type SketchIcon =
+    | "spot"
+    | "shrine"
+    | "night"
+    | "spring"
+    | "museum"
+    | "park"
+    | "station"
+    | "food"
+    | "shop"
+    | "stay"
+    | "ride";
 
   interface SketchNode {
     id: string;
     name: string;
+    subtitle: string;
     icon: SketchIcon;
     lat: number;
     lng: number;
@@ -148,6 +160,7 @@
     days: SketchDayPath[];
     rides: SketchRideArrow[];
     missing: number;
+    overview?: boolean;
   }
 
   interface KmPoint {
@@ -223,10 +236,8 @@
   }
 
   function defaultTitle(plan: TripPlan): string {
-    const days = PlannerFormat.inclusiveDays(plan.startDate, plan.endDate);
-    const nights = days > 0 ? days - 1 : 0;
     const city = plan.destination.trim() !== "" ? plan.destination.trim() : "城市";
-    return city + "旅遊地圖 – " + String(days) + " 天 " + String(nights) + " 夜之旅";
+    return city + (/(?:之旅|旅遊)$/.test(city) ? "地圖" : "旅遊地圖");
   }
 
   function dayColor(dayIndex: number): { fill: string; stroke: string; ink: string } {
@@ -241,10 +252,41 @@
 
   function iconFor(item: ItineraryItem): SketchIcon {
     if (item.type === "restaurant") return "food";
-    if (item.type === "shopping") return "shop";
     if (item.type === "hotel") return "stay";
+    if (/美食|餐廳|餐館|餐食|小吃|麵|飯|咖啡|茶館|甜點|冰品|料理|食堂|拉麵|燒肉|food|restaurant|cafe|coffee/i.test(item.name)) {
+      return "food";
+    }
+    if (/夜市|市集|市場|night\s*market/i.test(item.name)) return "night";
+    if (/溫泉|湯屋|湯泉|onsen|hot\s*spring/i.test(item.name)) return "spring";
+    if (/博物館|美術館|紀念館|展覽館|museum|gallery/i.test(item.name)) return "museum";
+    if (/車站|駅|機場|碼頭|轉運站|station|airport|terminal/i.test(item.name)) return "station";
     if (isShrine(item.name)) return "shrine";
+    if (/公園|森林|花園|濕地|步道|湖|山|park|garden|forest/i.test(item.name)) return "park";
+    if (item.type === "shopping") return "shop";
     return "spot";
+  }
+
+  function iconEnglish(icon: SketchIcon): string {
+    if (icon === "shrine") return "Temple";
+    if (icon === "night") return "Night Market";
+    if (icon === "spring") return "Hot Springs";
+    if (icon === "museum") return "Museum";
+    if (icon === "park") return "Park";
+    if (icon === "station") return "Station";
+    if (icon === "food") return "Food";
+    if (icon === "shop") return "Shopping";
+    if (icon === "stay") return "Accommodation";
+    if (icon === "ride") return "Transport";
+    return "Attraction";
+  }
+
+  function englishSubtitle(name: string, icon: SketchIcon): string {
+    const matches = name.match(/[A-Za-z][A-Za-z0-9'&., -]*/g);
+    if (matches) {
+      const text = matches.join(" ").replace(/\s+/g, " ").trim();
+      if (text.length >= 2) return text;
+    }
+    return iconEnglish(icon);
   }
 
   function rideLabel(ride: IntercityTransport): string {
@@ -360,6 +402,7 @@
       return addNode({
         id: stay.id,
         name: stay.name,
+        subtitle: englishSubtitle(stay.name, "stay"),
         icon: "stay",
         lat: stay.location.lat,
         lng: stay.location.lng,
@@ -394,10 +437,12 @@
           miss("item:" + item.id);
           continue;
         }
+        const icon = iconFor(item);
         const node = addNode({
           id: item.id,
           name: item.name,
-          icon: iconFor(item),
+          subtitle: englishSubtitle(item.name, icon),
+          icon: icon,
           lat: item.location.lat,
           lng: item.location.lng,
           x: 0,
@@ -475,6 +520,7 @@
     const node: SketchNode = {
       id: id,
       name: name.trim(),
+      subtitle: englishSubtitle(name, "ride"),
       icon: "ride",
       lat: pos.lat,
       lng: pos.lng,
@@ -761,7 +807,7 @@
     return x > LEGEND.x - 30 && x < LEGEND.x + LEGEND.w + 6 && y > LEGEND.y - 26 && y < LEGEND.y + LEGEND.h + 6;
   }
 
-  function placeNodes(nodes: SketchNode[], tight: boolean): void {
+  function placeNodes(nodes: SketchNode[], tight: boolean, minDistance?: number): void {
     const groups = clusterNodes(nodes);
     const clusters: SketchCluster[] = [];
     for (let index = 0; index < groups.length; index += 1) {
@@ -808,16 +854,16 @@
         node.y = box.y + (ly / cluster.height) * box.h;
       }
     }
-    nudgePage(nodes);
+    nudgePage(nodes, minDistance === undefined ? 84 : minDistance);
   }
 
-  function nudgePage(nodes: SketchNode[]): void {
+  function nudgePage(nodes: SketchNode[], minDistance: number): void {
     const homes: KmPoint[] = [];
     for (let index = 0; index < nodes.length; index += 1) {
       const node = nodes[index];
       homes.push(node ? { x: node.x, y: node.y } : { x: 0, y: 0 });
     }
-    for (let iter = 0; iter < 40; iter += 1) {
+    for (let iter = 0; iter < 80; iter += 1) {
       for (let left = 0; left < nodes.length; left += 1) {
         for (let right = left + 1; right < nodes.length; right += 1) {
           const a = nodes[left];
@@ -831,8 +877,8 @@
             dy = 0;
             dist = 1;
           }
-          if (dist >= 84) continue;
-          const push = (84 - dist) / 2;
+          if (dist >= minDistance) continue;
+          const push = (minDistance - dist) / 2;
           a.x -= (dx / dist) * push;
           a.y -= (dy / dist) * push;
           b.x += (dx / dist) * push;
@@ -843,8 +889,8 @@
         const node = nodes[index];
         const home = homes[index];
         if (!node || !home) continue;
-        node.x += (home.x - node.x) * 0.03;
-        node.y += (home.y - node.y) * 0.03;
+        node.x += (home.x - node.x) * 0.018;
+        node.y += (home.y - node.y) * 0.018;
         node.x = clamp(node.x, 48, VIEW_W - 48);
         node.y = clamp(node.y, 150, VIEW_H - 48);
         if (hitsLegend(node.x, node.y)) node.x = LEGEND.x - 44;
@@ -863,6 +909,27 @@
       '<path d="M6 11h20" stroke="#d4536e" stroke-width="3" stroke-linecap="round"/>',
       '<path d="M9 15h14" stroke="#d4536e" stroke-width="2" stroke-linecap="round"/>',
       '<path d="M11 15v11M21 15v11" stroke="#6a4a42" stroke-width="2.1" stroke-linecap="round"/>',
+      "</symbol>",
+      '<symbol id="sk-night" viewBox="0 0 32 32">',
+      '<path d="M5 11h22l-2-5H7z" fill="#f5a8b8" stroke="#6a4a42" stroke-width="1.5"/>',
+      '<path d="M7 11v15h18V11M11 11v4M16 11v4M21 11v4" fill="#fff3d6" stroke="#6a4a42" stroke-width="1.5"/>',
+      '<circle cx="12" cy="21" r="2" fill="#e9b85e"/><circle cx="20" cy="21" r="2" fill="#de796f"/>',
+      "</symbol>",
+      '<symbol id="sk-spring" viewBox="0 0 32 32">',
+      '<path d="M5 18c3 9 19 9 22 0z" fill="#a9dbea" stroke="#6a4a42" stroke-width="1.5"/>',
+      '<path d="M9 16c2-3-2-4 0-8M16 16c2-3-2-4 0-9M23 16c2-3-2-4 0-8" fill="none" stroke="#72aec2" stroke-width="1.8" stroke-linecap="round"/>',
+      "</symbol>",
+      '<symbol id="sk-museum" viewBox="0 0 32 32">',
+      '<path d="M4 11l12-6 12 6zM6 13h20M8 13v11M13 13v11M19 13v11M24 13v11M5 26h22" fill="#f6dfad" stroke="#6a4a42" stroke-width="1.5" stroke-linejoin="round"/>',
+      "</symbol>",
+      '<symbol id="sk-park" viewBox="0 0 32 32">',
+      '<path d="M7 24l6-10h-3l6-9 6 9h-3l6 10z" fill="#8fc584" stroke="#55734d" stroke-width="1.4" stroke-linejoin="round"/>',
+      '<path d="M16 20v7" stroke="#795548" stroke-width="2"/>',
+      "</symbol>",
+      '<symbol id="sk-station" viewBox="0 0 32 32">',
+      '<rect x="6" y="5" width="20" height="20" rx="5" fill="#b9d9e8" stroke="#6a4a42" stroke-width="1.6"/>',
+      '<path d="M10 10h12v7H10zM9 27l3-4M23 27l-3-4" fill="#fffaf0" stroke="#6a4a42" stroke-width="1.4"/>',
+      '<circle cx="11" cy="21" r="1.7" fill="#6a4a42"/><circle cx="21" cy="21" r="1.7" fill="#6a4a42"/>',
       "</symbol>",
       '<symbol id="sk-food" viewBox="0 0 32 32">',
       '<path d="M7 15h18c0 6.2-4 10-9 10s-9-3.8-9-10z" fill="#fff6ea" stroke="#6a4a42" stroke-width="1.6" stroke-linejoin="round"/>',
@@ -897,6 +964,14 @@
       '<ellipse cx="32" cy="14" rx="7" ry="12" transform="rotate(288 32 32)"/>',
       "</g>",
       '<circle cx="32" cy="32" r="4.5" fill="#f6e39a"/>',
+      "</symbol>",
+      '<symbol id="sk-mountain" viewBox="0 0 64 44">',
+      '<path d="M2 41L22 10l9 13L43 5l19 36z" fill="#91c486" stroke="#527252" stroke-width="2" stroke-linejoin="round"/>',
+      '<path d="M16 19l6-9 6 9-5-2zM36 15l7-10 8 14-8-4z" fill="#fff8ed" opacity=".9"/>',
+      "</symbol>",
+      '<symbol id="sk-tree" viewBox="0 0 28 42">',
+      '<path d="M14 7L4 24h7L6 33h16l-5-9h7z" fill="#6fa66b" stroke="#4f704e" stroke-width="1.5" stroke-linejoin="round"/>',
+      '<path d="M14 31v9" stroke="#805d45" stroke-width="2.5"/>',
       "</symbol>"
     ].join("");
   }
@@ -988,7 +1063,8 @@
     label: string,
     gap?: number,
     endGap?: number,
-    minSpan?: number
+    minSpan?: number,
+    labelAt?: { x: number; y: number }
   ): string {
     const inset = gap === undefined ? 26 : gap;
     const outInset = endGap === undefined ? inset : endGap;
@@ -1005,9 +1081,11 @@
       arrowHead(curve.ex, curve.ey, curve.tx, curve.ty, color, head);
     if (label !== "") {
       const pill = textWidth(label, 13) + 18;
-      body += '<rect x="' + num(curve.lx - pill / 2) + '" y="' + num(curve.ly - 12) + '" width="' + num(pill) +
+      const labelX = labelAt ? labelAt.x : curve.lx;
+      const labelY = labelAt ? labelAt.y : curve.ly;
+      body += '<rect x="' + num(labelX - pill / 2) + '" y="' + num(labelY - 12) + '" width="' + num(pill) +
         '" height="22" rx="11" fill="#fffaf6" stroke="#e7b7a8" stroke-width="1.4"/>' +
-        '<text x="' + num(curve.lx) + '" y="' + num(curve.ly + 4) +
+        '<text x="' + num(labelX) + '" y="' + num(labelY + 4) +
         '" text-anchor="middle" font-family="jf open huninn, sans-serif" font-size="13" fill="#7a4450">' +
         esc(label) + "</text>";
     }
@@ -1046,7 +1124,7 @@
       }
       if (!Number.isFinite(minX)) continue;
       const color = dayColor(day.dayIndex);
-      const heading = "Day " + String(day.dayIndex) + " " + PlannerFormat.formatShortDate(day.date) + "・" + day.city;
+      const heading = "Day " + String(day.dayIndex) + " " + PlannerFormat.formatShortDate(day.date);
       let x = minX - 36;
       let y = minY - 52;
       let w = Math.max(128, maxX - minX + 72);
@@ -1092,8 +1170,19 @@
       left.y < right.y + right.h + 6 && left.y + left.h + 6 > right.y;
   }
 
-  function drawDayTitles(plates: DayPlate[]): string {
+  function drawDayTitles(plates: DayPlate[], nodes: SketchNode[]): string {
     const placed: { x: number; y: number; w: number; h: number }[] = [];
+    for (let index = 0; index < nodes.length; index += 1) {
+      const node = nodes[index];
+      if (!node) continue;
+      const ink = inkExtents(node);
+      placed.push({
+        x: node.x + ink.left - 5,
+        y: node.y + ink.top - 5,
+        w: ink.right - ink.left + 10,
+        h: ink.bottom - ink.top + 10
+      });
+    }
     const shifts = [
       { dx: 0, dy: 0 },
       { dx: 0, dy: -32 },
@@ -1104,7 +1193,15 @@
       { dx: -56, dy: -32 },
       { dx: 56, dy: -32 },
       { dx: -56, dy: 0 },
-      { dx: 56, dy: 0 }
+      { dx: 56, dy: 0 },
+      { dx: -112, dy: -32 },
+      { dx: 112, dy: -32 },
+      { dx: -112, dy: 0 },
+      { dx: 112, dy: 0 },
+      { dx: -168, dy: -64 },
+      { dx: 168, dy: -64 },
+      { dx: -168, dy: 34 },
+      { dx: 168, dy: 34 }
     ];
     let body = "";
     for (let index = 0; index < plates.length; index += 1) {
@@ -1169,8 +1266,115 @@
     return legs;
   }
 
+  function routeBend(from: SketchNode, to: SketchNode, base: number, nodes: SketchNode[], gentle: boolean): number {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const origin = gentle ? clamp(base, -10, 10) : base;
+    const candidates = gentle
+      ? [origin, origin + 10, origin - 10, origin + 20, origin - 20]
+      : [origin, origin + 48, origin - 48, origin + 88, origin - 88, origin + 128, origin - 128];
+    let best = origin;
+    let bestScore = Infinity;
+    for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
+      const bend = candidates[candidateIndex] || 0;
+      const cx = (from.x + to.x) / 2 + (-dy / len) * bend;
+      const cy = (from.y + to.y) / 2 + (dx / len) * bend;
+      let score = Math.abs(bend - origin) * (gentle ? 0.45 : 0.04) + (gentle ? Math.abs(bend) * 0.15 : 0);
+      for (let step = 1; step < 12; step += 1) {
+        const t = step / 12;
+        const omt = 1 - t;
+        const x = omt * omt * from.x + 2 * omt * t * cx + t * t * to.x;
+        const y = omt * omt * from.y + 2 * omt * t * cy + t * t * to.y;
+        if (x < 24 || x > VIEW_W - 24 || y < 92 || y > VIEW_H - 18) score += 80;
+        for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex += 1) {
+          const node = nodes[nodeIndex];
+          if (!node) continue;
+          const measure = measureLabel(node.name, node.subtitle);
+          const box = labelBoxAt(node, node.labelCx, node.labelCy, measure.w, measure.h);
+          if (x > box.x - 7 && x < box.x + box.w + 7 && y > box.y - 7 && y < box.y + box.h + 7) {
+            score += 120;
+          }
+          if (node.id !== from.id && node.id !== to.id && Math.hypot(x - node.x, y - node.y) < 24) score += 40;
+        }
+      }
+      if (score < bestScore) {
+        bestScore = score;
+        best = bend;
+      }
+      if (score < 1) break;
+    }
+    return best;
+  }
+
+  function routeLabelPoint(
+    from: SketchNode,
+    to: SketchNode,
+    bend: number,
+    label: string,
+    nodes: SketchNode[],
+    used: LabelBox[]
+  ): KmPoint {
+    const curve = curveParts(from.x, from.y, to.x, to.y, bend);
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+    const tx = dx / len;
+    const ty = dy / len;
+    const pillW = textWidth(label, 13) + 18;
+    const offsets = [
+      { normal: 0, along: 0 },
+      { normal: 18, along: 0 }, { normal: -18, along: 0 },
+      { normal: 30, along: 0 }, { normal: -30, along: 0 },
+      { normal: 18, along: 30 }, { normal: -18, along: 30 },
+      { normal: 18, along: -30 }, { normal: -18, along: -30 },
+      { normal: 42, along: 0 }, { normal: -42, along: 0 },
+      { normal: 54, along: 0 }, { normal: -54, along: 0 },
+      { normal: 30, along: 54 }, { normal: -30, along: 54 },
+      { normal: 30, along: -54 }, { normal: -30, along: -54 },
+      { normal: 52, along: 42 }, { normal: -52, along: 42 },
+      { normal: 52, along: -42 }, { normal: -52, along: -42 },
+      { normal: 0, along: 64 }, { normal: 0, along: -64 }
+    ];
+    let best = { x: curve.lx, y: curve.ly };
+    let bestScore = Infinity;
+    for (let index = 0; index < offsets.length; index += 1) {
+      const offset = offsets[index];
+      if (!offset) continue;
+      const x = curve.lx + nx * offset.normal + tx * offset.along;
+      const y = curve.ly + ny * offset.normal + ty * offset.along;
+      const box: LabelBox = { x: x - pillW / 2, y: y - 12, w: pillW, h: 22 };
+      if (box.x < 12 || box.x + box.w > VIEW_W - 12 || box.y < 78 || box.y + box.h > VIEW_H - 12) continue;
+      let score = Math.abs(offset.normal) * 0.08 + Math.abs(offset.along) * 0.05;
+      for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex += 1) {
+        const node = nodes[nodeIndex];
+        if (!node) continue;
+        const measure = measureLabel(node.name, node.subtitle);
+        const labelBox = labelBoxAt(node, node.labelCx, node.labelCy, measure.w, measure.h);
+        if (boxesOverlap(box, labelBox, 5)) score += 500;
+        const nearX = clamp(node.x, box.x, box.x + box.w);
+        const nearY = clamp(node.y, box.y, box.y + box.h);
+        if (Math.hypot(node.x - nearX, node.y - nearY) < 23) score += 500;
+      }
+      for (let usedIndex = 0; usedIndex < used.length; usedIndex += 1) {
+        const other = used[usedIndex];
+        if (other && boxesOverlap(box, other, 5)) score += 400;
+      }
+      if (score < bestScore) {
+        bestScore = score;
+        best = { x: x, y: y };
+      }
+      if (score < 4) break;
+    }
+    used.push({ x: best.x - pillW / 2, y: best.y - 12, w: pillW, h: 22 });
+    return best;
+  }
+
   function drawLinks(model: SketchModel, byId: { [id: string]: SketchNode }): string {
     let body = "";
+    const routeLabels: LabelBox[] = [];
     for (let index = 0; index < model.days.length; index += 1) {
       const day = model.days[index];
       if (!day) continue;
@@ -1182,14 +1386,20 @@
         const from = byId[leg.fromId];
         const to = byId[leg.toId];
         if (!from || !to) continue;
-        const bend = (unit(hashText(from.id + ">" + to.id)) - 0.5) * 36;
+        const baseBend = (unit(hashText(from.id + ">" + to.id)) - 0.5) * 36;
+        const bend = routeBend(from, to, baseBend, model.nodes, !!model.overview);
         const hop = sameDayHopLabel(from, to);
         const arrowBend = hop !== "" || leg.sourceIndex === day.changeLeg ? (bend === 0 ? 28 : bend) : bend;
         const arrowColor = hop !== "" || leg.sourceIndex === day.changeLeg ? color.ink : color.stroke;
         const arrowWidth = hop !== "" || leg.sourceIndex === day.changeLeg ? 5 : 2.5;
-        const arrowDash = hop === "" && leg.sourceIndex !== day.changeLeg;
-        const arrowLabel = hop !== "" ? hop : leg.sourceIndex === day.changeLeg ? "移動" : "";
-        body += drawArrow(from, to, arrowBend, arrowColor, arrowWidth, arrowDash, arrowLabel);
+        const arrowDash = true;
+        const arrowLabel = legIndex === 0
+          ? "Day " + String(day.dayIndex)
+          : hop !== "" ? hop : leg.sourceIndex === day.changeLeg ? "移動" : "";
+        const labelAt = arrowLabel === ""
+          ? undefined
+          : routeLabelPoint(from, to, arrowBend, arrowLabel, model.nodes, routeLabels);
+        body += drawArrow(from, to, arrowBend, arrowColor, arrowWidth, arrowDash, arrowLabel, undefined, undefined, undefined, labelAt);
       }
     }
     for (let index = 0; index < model.rides.length; index += 1) {
@@ -1281,14 +1491,15 @@
     return splitChars(text, LABEL_MAX_W, LABEL_SIZE);
   }
 
-  function measureLabel(name: string): LabelMeasure {
+  function measureLabel(name: string, subtitle: string): LabelMeasure {
     const lines = labelLines(name);
     let maxW = 0;
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index];
       if (line) maxW = Math.max(maxW, textWidth(line, LABEL_SIZE));
     }
-    return { lines: lines, w: Math.max(28, maxW + 14), h: lines.length * 16 + 8 };
+    maxW = Math.max(maxW, textWidth(ellipsis(subtitle, LABEL_MAX_W, 10), 10));
+    return { lines: lines, w: Math.max(38, maxW + 14), h: lines.length * 16 + 21 };
   }
 
   function leaderLine(cx: number, cy: number, w: number, h: number): string {
@@ -1326,7 +1537,7 @@
     for (let index = 0; index < nodes.length; index += 1) {
       const node = nodes[index];
       if (!node) continue;
-      const measure = measureLabel(node.name);
+      const measure = measureLabel(node.name, node.subtitle);
       const rectX = node.labelCx - measure.w / 2;
       const rectY = node.labelCy - measure.h / 2;
       let labels = node.leader ? leaderLine(node.labelCx, node.labelCy, measure.w, measure.h) : "";
@@ -1339,6 +1550,9 @@
           '" text-anchor="middle" font-family="jf open huninn, sans-serif" font-size="13" fill="#5c3b36">' +
           esc(line) + "</text>";
       }
+      labels += '<text x="' + num(node.labelCx) + '" y="' + num(rectY + measure.lines.length * 16 + 13) +
+        '" text-anchor="middle" font-family="jf open huninn, sans-serif" font-size="10" fill="#9a6e63">' +
+        esc(ellipsis(node.subtitle, LABEL_MAX_W, 10)) + "</text>";
       body += '<g class="sketch-node" data-sketch-id="' + esc(node.id) + '" transform="translate(' +
         num(node.x) + " " + num(node.y) + ')">' +
         '<circle class="sketch-halo" cx="0" cy="0" r="22" fill="none" stroke="#d4537e" stroke-width="3" opacity="0"/>' +
@@ -1353,9 +1567,13 @@
   function drawLegend(): string {
     const items: { icon: SketchIcon; label: string }[] = [
       { icon: "spot", label: "景點" },
-      { icon: "shrine", label: "神社寺廟" },
+      { icon: "shrine", label: "寺廟" },
+      { icon: "night", label: "夜市" },
+      { icon: "spring", label: "溫泉" },
+      { icon: "museum", label: "博物館" },
+      { icon: "park", label: "公園" },
+      { icon: "station", label: "車站" },
       { icon: "food", label: "美食" },
-      { icon: "shop", label: "購物" },
       { icon: "stay", label: "住宿" },
       { icon: "ride", label: "交通" }
     ];
@@ -1368,8 +1586,8 @@
       if (!item) continue;
       const col = index % 2;
       const row = Math.floor(index / 2);
-      const x = LEGEND.x + 16 + col * 112;
-      const y = LEGEND.y + 48 + row * 40;
+      const x = LEGEND.x + 14 + col * 118;
+      const y = LEGEND.y + 42 + row * 38;
       body += '<use href="#sk-' + item.icon + '" xlink:href="#sk-' + item.icon + '" x="' + String(x) + '" y="' +
         String(y) + '" width="24" height="24"/>' +
         '<text x="' + String(x + 30) + '" y="' + String(y + 17) +
@@ -1421,7 +1639,7 @@
         if (node.y > maxY) maxY = node.y;
       }
       if (!Number.isFinite(minX)) continue;
-      const heading = "Day " + String(day.dayIndex) + " " + PlannerFormat.formatShortDate(day.date) + "・" + day.city;
+      const heading = "Day " + String(day.dayIndex) + " " + PlannerFormat.formatShortDate(day.date);
       let x = minX - 36;
       let y = minY - 52;
       let w = Math.max(128, maxX - minX + 72);
@@ -1460,7 +1678,7 @@
     for (let index = 0; index < order.length; index += 1) {
       const node = order[index];
       if (!node) continue;
-      const measure = measureLabel(node.name);
+      const measure = measureLabel(node.name, node.subtitle);
       const candidates: { cx: number; cy: number; leader: boolean }[] = [
         { cx: 0, cy: 22 + measure.h / 2, leader: false },
         { cx: 0, cy: -(18 + measure.h / 2), leader: false },
@@ -1504,7 +1722,7 @@
 
   /** 圖示圓與標籤的局部範圍。原點是圖示中心，不隨縮放改變，字才不會變小。 */
   function inkExtents(node: SketchNode): { left: number; right: number; top: number; bottom: number } {
-    const measure = measureLabel(node.name);
+    const measure = measureLabel(node.name, node.subtitle);
     const labelLeft = node.labelCx - measure.w / 2;
     const labelRight = node.labelCx + measure.w / 2;
     const labelTop = node.labelCy - measure.h / 2;
@@ -1687,8 +1905,13 @@
   }
 
   function segmentIcon(plan: TripPlan, segment: CitySegment): SketchIcon {
-    const counts: { [icon: string]: number } = { spot: 0, shrine: 0, food: 0, shop: 0, stay: 0 };
-    const order: SketchIcon[] = ["spot", "shrine", "food", "shop", "stay"];
+    const counts: { [icon: string]: number } = {
+      spot: 0, shrine: 0, night: 0, spring: 0, museum: 0, park: 0,
+      station: 0, food: 0, shop: 0, stay: 0
+    };
+    const order: SketchIcon[] = [
+      "spot", "shrine", "night", "spring", "museum", "park", "station", "food", "shop", "stay"
+    ];
     for (let index = 0; index < segment.dayIndexes.length; index += 1) {
       const dayIndex = segment.dayIndexes[index];
       const day = dayIndex === undefined ? undefined : plan.days[dayIndex];
@@ -2516,6 +2739,88 @@
     return under + marks + over + pills;
   }
 
+  function clearOfPoints(x: number, y: number, points: KmPoint[], radius: number): boolean {
+    if (hitsLegend(x, y)) return false;
+    for (let index = 0; index < points.length; index += 1) {
+      const point = points[index];
+      if (point && Math.hypot(point.x - x, point.y - y) < radius) return false;
+    }
+    return true;
+  }
+
+  function baseScenery(title: string, points: KmPoint[]): string {
+    const seed = hashText(title);
+    const seaOnLeft = seed % 2 === 0;
+    const edge = seaOnLeft
+      ? "M32 112 C115 190 78 276 132 360 C177 430 92 526 146 610 C175 658 124 730 32 792 Z"
+      : "M1168 112 C1085 190 1122 276 1068 360 C1023 430 1108 526 1054 610 C1025 658 1076 730 1168 792 Z";
+    const riverY = 250 + (seed % 190);
+    let body = '<path d="' + edge + '" fill="#acddeb" fill-opacity=".88" stroke="#73b7ce" stroke-width="3"/>' +
+      '<path d="M24 ' + String(riverY) + ' C260 ' + String(riverY - 95) + " 390 " + String(riverY + 105) +
+      " 610 " + String(riverY + 14) + " S970 " + String(riverY - 80) + " 1176 " + String(riverY + 34) +
+      '" fill="none" stroke="#8bcfe2" stroke-width="18" stroke-linecap="round" opacity=".8"/>' +
+      '<path d="M24 ' + String(riverY) + ' C260 ' + String(riverY - 95) + " 390 " + String(riverY + 105) +
+      " 610 " + String(riverY + 14) + " S970 " + String(riverY - 80) + " 1176 " + String(riverY + 34) +
+      '" fill="none" stroke="#c9edf4" stroke-width="4" stroke-linecap="round" opacity=".75"/>';
+    const candidates = [
+      { x: 112, y: 166 }, { x: 1080, y: 174 }, { x: 174, y: 690 }, { x: 842, y: 174 },
+      { x: 730, y: 710 }, { x: 362, y: 184 }, { x: 1050, y: 454 }, { x: 350, y: 720 }
+    ];
+    for (let index = 0; index < candidates.length; index += 1) {
+      const spot = candidates[(index + seed) % candidates.length];
+      if (!spot || !clearOfPoints(spot.x, spot.y, points, 104)) continue;
+      if (index < 4) {
+        body += '<use href="#sk-mountain" xlink:href="#sk-mountain" x="' + String(spot.x - 42) + '" y="' +
+          String(spot.y - 30) + '" width="84" height="58" opacity=".9"/>';
+      } else {
+        for (let tree = 0; tree < 3; tree += 1) {
+          const dx = (tree - 1) * 25;
+          const dy = tree % 2 === 0 ? 0 : 12;
+          body += '<use href="#sk-tree" xlink:href="#sk-tree" x="' + String(spot.x + dx - 14) + '" y="' +
+            String(spot.y + dy - 21) + '" width="28" height="42" opacity=".88"/>';
+        }
+      }
+    }
+    return '<g class="sketch-scenery" pointer-events="none">' + body + "</g>";
+  }
+
+  function drawRoads(model: SketchModel, byId: { [id: string]: SketchNode }): string {
+    let roads = "";
+    for (let dayIndex = 0; dayIndex < model.days.length; dayIndex += 1) {
+      const day = model.days[dayIndex];
+      if (!day) continue;
+      const legs = dayLegs(day, byId);
+      for (let legIndex = 0; legIndex < legs.length; legIndex += 1) {
+        const leg = legs[legIndex];
+        if (!leg) continue;
+        const from = byId[leg.fromId];
+        const to = byId[leg.toId];
+        if (!from || !to) continue;
+        const baseBend = (unit(hashText(from.id + ">" + to.id)) - 0.5) * 36;
+        const bend = routeBend(from, to, baseBend, model.nodes, !!model.overview);
+        const curve = curveParts(from.x, from.y, to.x, to.y, bend);
+        roads += '<path d="' + curve.d + '" fill="none" stroke="#fff2d5" stroke-width="18" stroke-linecap="round"/>' +
+          '<path d="' + curve.d + '" fill="none" stroke="#e8c58c" stroke-width="11" stroke-linecap="round"/>';
+      }
+    }
+    return '<g class="sketch-roads" pointer-events="none" opacity=".92">' + roads + "</g>";
+  }
+
+  function drawOverviewRoads(model: OverviewModel): string {
+    let roads = "";
+    for (let index = 0; index < model.links.length; index += 1) {
+      const link = model.links[index];
+      if (!link || link.flight) continue;
+      const from = linkPoint(model, link.fromKind, link.fromIndex);
+      const to = linkPoint(model, link.toKind, link.toIndex);
+      if (!from || !to) continue;
+      const curve = curveParts(from.x, from.y, to.x, to.y, index % 2 === 0 ? 20 : -20);
+      roads += '<path d="' + curve.d + '" fill="none" stroke="#fff2d5" stroke-width="22" stroke-linecap="round"/>' +
+        '<path d="' + curve.d + '" fill="none" stroke="#e8c58c" stroke-width="14" stroke-linecap="round"/>';
+    }
+    return '<g class="sketch-roads" pointer-events="none" opacity=".9">' + roads + "</g>";
+  }
+
   function paper(title: string, middle: string, empty: string): string {
     const size = title.length > 28 ? 22 : title.length > 20 ? 26 : 32;
     const flowers = [
@@ -2538,6 +2843,8 @@
       '<rect width="' + String(VIEW_W) + '" height="' + String(VIEW_H) + '" rx="28" fill="#e7c4b4" filter="url(#sk-grain)" opacity="0.45"/>' +
       '<rect x="10" y="10" width="' + String(VIEW_W - 20) + '" height="' + String(VIEW_H - 20) +
       '" rx="24" fill="none" stroke="#f0d2c4" stroke-width="3"/>' +
+      '<rect x="22" y="22" width="' + String(VIEW_W - 44) + '" height="' + String(VIEW_H - 44) +
+      '" rx="19" fill="none" stroke="#e9b9b9" stroke-width="2" stroke-dasharray="3 9" opacity=".8"/>' +
       flowers +
       middle +
       empty +
@@ -2553,9 +2860,15 @@
       ? '<text x="600" y="420" text-anchor="middle" font-family="jf open huninn, sans-serif" font-size="20" fill="#8a5a62">這段行程還沒有可畫的地點</text>'
       : "";
     const plates = dayPlates(model, byId);
+    const points: KmPoint[] = [];
+    for (let index = 0; index < model.nodes.length; index += 1) {
+      const node = model.nodes[index];
+      if (node) points.push({ x: node.x, y: node.y });
+    }
     return paper(
       title,
-      drawDayBlobs(plates) + drawLinks(model, byId) + drawNodes(model.nodes) + drawDayTitles(plates) + drawLegend(),
+      baseScenery(title, points) + drawRoads(model, byId) + drawLinks(model, byId) +
+      drawNodes(model.nodes) + drawDayTitles(plates, model.nodes) + drawLegend(),
       empty
     );
   }
@@ -2564,15 +2877,26 @@
     const empty = model.stops.length === 0
       ? '<text x="600" y="420" text-anchor="middle" font-family="jf open huninn, sans-serif" font-size="20" fill="#8a5a62">這段行程還沒有可畫的城市</text>'
       : "";
-    return paper(title, drawCityStops(model) + drawLegend(), empty);
+    const points: KmPoint[] = [];
+    for (let index = 0; index < model.stops.length; index += 1) {
+      const stop = model.stops[index];
+      if (stop) points.push({ x: stop.x, y: stop.y });
+    }
+    for (let index = 0; index < model.markers.length; index += 1) {
+      const marker = model.markers[index];
+      if (marker) points.push({ x: marker.x, y: marker.y });
+    }
+    return paper(title, baseScenery(title, points) + drawOverviewRoads(model) + drawCityStops(model) + drawLegend(), empty);
   }
 
   function render(options: SketchOptions): SketchResult {
     const title = options.title.trim() !== "" ? options.title.trim() : defaultTitle(options.plan);
     if (options.scope.kind === "overview") {
-      const overview = buildOverview(options.plan);
-      layoutOverview(overview);
-      return { svg: drawOverview(title, overview), missing: overview.missing };
+      const model = buildModel(options.plan, options.plan.days.slice(), "", false);
+      model.overview = true;
+      placeNodes(model.nodes, false, model.nodes.length > 14 ? 112 : 126);
+      placeLabels(model);
+      return { svg: draw(title, model), missing: model.missing };
     }
     const daySketch = options.scope.kind === "day";
     const cityFilter = options.scope.kind === "city" ? options.scope.city : "";

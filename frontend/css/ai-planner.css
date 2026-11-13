@@ -1108,9 +1108,12 @@ button.leg-pill:hover { background: #d7eeeb; }
 .result-body.is-sketch {
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
-    "tabs"
     "map"
     "panel";
+}
+
+.result-body.is-sketch > .day-tabs {
+  display: none;
 }
 
 .map-panel.is-sketch {
@@ -1140,6 +1143,47 @@ button.leg-pill:hover { background: #d7eeeb; }
   border-radius: 0 0 18px 18px;
   overflow: hidden;
   min-height: 560px;
+}
+
+@media (max-width: 640px) {
+  .map-panel.is-sketch {
+    min-height: 0;
+  }
+
+  .map-panel.is-sketch .map-toolbar {
+    align-items: stretch;
+    padding: 8px;
+  }
+
+  .map-panel.is-sketch .map-switch,
+  .map-panel.is-sketch .sketch-days {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+  }
+
+  .map-panel.is-sketch .map-switch button,
+  .map-panel.is-sketch .sketch-days button {
+    flex: 0 0 auto;
+  }
+
+  .map-panel.is-sketch .sketch-title-field {
+    flex-basis: 100%;
+  }
+
+  .map-panel.is-sketch .sketch-map {
+    min-height: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+  }
+
+  .map-panel.is-sketch .sketch-map svg {
+    width: 900px;
+    max-width: none;
+  }
 }
 
 .destination-hero {

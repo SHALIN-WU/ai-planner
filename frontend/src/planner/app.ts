@@ -352,6 +352,13 @@
     fonts.load('32px "jf open huninn"').then(finish).catch(finish);
   }
 
+  function centerSketchOnSmallScreen(): void {
+    if (!window.matchMedia("(max-width: 640px)").matches) return;
+    const stage = root.querySelector("#sketch-map");
+    if (!(stage instanceof HTMLElement)) return;
+    stage.scrollLeft = Math.max(0, (stage.scrollWidth - stage.clientWidth) / 2);
+  }
+
   let sketchFontData: Promise<string> | null = null;
 
   function sketchFontUrl(): Promise<string> {
@@ -405,21 +412,6 @@
       clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
       clone.setAttribute("width", "1200");
       clone.setAttribute("height", "820");
-      const runs: { text: string; x: number; y: number; size: number; fill: string; align: CanvasTextAlign }[] = [];
-      const texts = clone.querySelectorAll("text");
-      for (let index = 0; index < texts.length; index += 1) {
-        const text = texts[index];
-        if (!(text instanceof SVGTextElement)) continue;
-        const content = text.textContent || "";
-        const x = Number(text.getAttribute("x") || "0");
-        const y = Number(text.getAttribute("y") || "0");
-        const size = Number(text.getAttribute("font-size") || "14");
-        const fill = text.getAttribute("fill") || "#5c3b36";
-        const anchor = text.getAttribute("text-anchor") || "start";
-        const align: CanvasTextAlign = anchor === "middle" ? "center" : anchor === "end" ? "right" : "left";
-        runs.push({ text: content, x: x, y: y, size: size, fill: fill, align: align });
-        text.setAttribute("fill", "transparent");
-      }
       const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
       style.textContent = '@font-face{font-family:"jf open huninn";src:url("' + dataUrl + '") format("woff2");font-weight:400;font-style:normal;}';
       clone.insertBefore(style, clone.firstChild);
@@ -442,15 +434,6 @@
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.setTransform(scale, 0, 0, scale, 0, 0);
         ctx.drawImage(image, 0, 0, 1200, 820);
-        ctx.textBaseline = "alphabetic";
-        for (let index = 0; index < runs.length; index += 1) {
-          const run = runs[index];
-          if (!run || run.text === "") continue;
-          ctx.font = String(run.size) + 'px "jf open huninn", sans-serif';
-          ctx.fillStyle = run.fill;
-          ctx.textAlign = run.align;
-          ctx.fillText(run.text, run.x, run.y);
-        }
         canvas.toBlob(function (png) {
           URL.revokeObjectURL(url);
           if (button instanceof HTMLButtonElement) button.disabled = false;
@@ -524,6 +507,7 @@
         PlannerMap.setRoutes(daySegments());
       } else {
         enableSketchDownload();
+        centerSketchOnSmallScreen();
       }
       if (startRoutes) {
         const token = routeToken;
@@ -5401,7 +5385,10 @@
         const raw = button.getAttribute("data-sketch-day");
         if (raw !== null && /^\d+$/.test(raw)) {
           const index = Number(raw);
-          if (state.plan && state.plan.days[index]) state.sketchScope = { kind: "day", index: index };
+          if (state.plan && state.plan.days[index]) {
+            state.sketchScope = { kind: "day", index: index };
+            state.activeDay = index;
+          }
         }
       } else if (kind === "city") {
         const city = button.getAttribute("data-sketch-city");
