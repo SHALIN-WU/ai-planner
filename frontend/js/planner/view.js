@@ -2,7 +2,7 @@
 (function (root) {
     "use strict";
     const INTERESTS = ["美食", "文化", "購物", "自然", "親子", "夜生活", "藝術"];
-    const CITIES = ["東京", "大阪", "京都", "首爾", "台北", "福岡"];
+    const CITIES = ["金澤", "高山", "日光", "奈良", "京都", "台東"];
     const PACES = ["relaxed", "moderate", "packed"];
     function interestOptions() {
         return INTERESTS.slice();
@@ -144,7 +144,7 @@
             '<div class="destination-copy">' +
             '<h1><label for="destination">你想去哪裡？</label></h1>' +
             '<p class="hero-lead">告訴我們下一站，讓 AI 為你安排一趟剛剛好的旅程。</p>' +
-            '<input id="destination" class="destination-input" data-field="destination" type="text" maxlength="40" enterkeyhint="next" autocomplete="off" placeholder="例如：東京、大阪、首爾" value="' + escapeHtml(state.draft.destination) + '">' +
+            '<input id="destination" class="destination-input" data-field="destination" type="text" maxlength="40" enterkeyhint="next" autocomplete="off" placeholder="例如：金澤、高山、台東" value="' + escapeHtml(state.draft.destination) + '">' +
             '<p class="group-label" id="city-label">熱門城市</p>' +
             '<div class="chips" role="group" aria-labelledby="city-label">' + chips + "</div>" +
             renderError(state.error) +
@@ -189,7 +189,7 @@
                 '" role="radio" aria-checked="' + (on ? "true" : "false") + '" data-action="set-pace" data-pace="' +
                 pace + '">' + escapeHtml(PlannerFormat.formatPace(pace)) + "</button>";
         }).join("");
-        return '<section class="card">' +
+        return '<section class="card preferences-card">' +
             "<h1>設定偏好</h1>" +
             '<p class="lead">目的地：' + escapeHtml(state.draft.destination.trim()) + "</p>" +
             '<div class="date-row">' +
