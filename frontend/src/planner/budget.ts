@@ -416,7 +416,7 @@
   function toCsv(plan: TripPlan, rates: ExchangeRates): string {
     const home = plan.budget.currency || "TWD";
     const lines = [
-      csvLine(["日期", "站序", "名稱", "類型", "停留時間", "交通方式", "交通時間", "費用（原幣）", "費用（" + home + "）"])
+      csvLine(["日期", "站序", "名稱", "類型", "停留時間", "交通方式", "交通時間", "費用（原幣）", "費用（" + home + "）", "說明"])
     ];
     for (let dayIndex = 0; dayIndex < plan.days.length; dayIndex += 1) {
       const day = plan.days[dayIndex];
@@ -435,7 +435,8 @@
           leg ? PlannerFormat.transportModeLabel(leg.mode) : "",
           leg ? String(leg.minutes) + " 分鐘" : "",
           moneyText(item.cost),
-          moneyText(convert(item.cost, home, rates))
+          moneyText(convert(item.cost, home, rates)),
+          item.description || ""
         ]));
         if (leg && leg.cost) {
           lines.push(csvLine([
@@ -447,7 +448,8 @@
             PlannerFormat.transportModeLabel(leg.mode),
             String(leg.minutes) + " 分鐘",
             moneyText(leg.cost),
-            moneyText(convert(leg.cost, home, rates))
+            moneyText(convert(leg.cost, home, rates)),
+            ""
           ]));
         }
       }
@@ -466,7 +468,8 @@
         "",
         stay.checkIn + " 入住至 " + stay.checkOut + " 退房",
         moneyText(stayOriginal(stay)),
-        moneyText(stayHome(stay, home, rates))
+        moneyText(stayHome(stay, home, rates)),
+        stay.note || ""
       ]));
     }
     const rides = (plan.transports || []).slice().sort(function (a, b) {
@@ -489,7 +492,8 @@
         PlannerFormat.intercityModeLabel(ride.mode),
         span,
         moneyText(ride.cost),
-        moneyText(convert(ride.cost, home, rates))
+        moneyText(convert(ride.cost, home, rates)),
+        ride.note || ""
       ]));
     }
     return lines.join("\r\n");

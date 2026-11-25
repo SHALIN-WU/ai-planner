@@ -8,7 +8,7 @@ type PlaceType = "attraction" | "restaurant" | "hotel" | "shopping";
 
 type TransportMode = "walk" | "train" | "bus" | "car" | "taxi";
 
-type IntercityMode = "flight" | "train" | "bus" | "car" | "ferry" | "other";
+type IntercityMode = "flight" | "train" | "hsr" | "bus" | "car" | "ferry" | "other";
 
 type BudgetStatus = "ok" | "warn" | "over";
 
@@ -279,6 +279,9 @@ interface PlannerState {
   addOpen: boolean;
   addName: string;
   addType: PlaceType;
+  addNote: string;
+  /** 有值時，新增表單改為編輯這一站。空字串表示正在新增。 */
+  editItemId: string;
   addAfter: number;
   stayOpen: boolean;
   stayDraft: StayDraft;

@@ -148,6 +148,7 @@
   function intercityIcon(mode: IntercityMode): string {
     if (mode === "flight") return "✈️";
     if (mode === "train") return "🚄";
+    if (mode === "hsr") return "🚄";
     if (mode === "bus") return "🚌";
     if (mode === "car") return "🚗";
     if (mode === "ferry") return "⛴️";
@@ -157,6 +158,7 @@
   function intercityModeLabel(mode: IntercityMode): string {
     if (mode === "flight") return "飛機";
     if (mode === "train") return "火車";
+    if (mode === "hsr") return "高鐵";
     if (mode === "bus") return "巴士";
     if (mode === "car") return "開車";
     if (mode === "ferry") return "渡輪";

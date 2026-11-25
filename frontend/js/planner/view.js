@@ -370,6 +370,23 @@
         return '<p class="free-time"><strong>自由時間／回飯店休息</strong><span>' +
             escapeHtml(when) + " · " + escapeHtml(length) + "</span></p>";
     }
+    function stayParts(minutes) {
+        const total = Number.isFinite(minutes) && minutes > 0 ? Math.round(minutes) : 0;
+        const capped = Math.max(0, Math.min(24 * 60, total));
+        return { hours: Math.floor(capped / 60), minutes: capped % 60 };
+    }
+    function renderStayEditor(item) {
+        const stay = stayParts(item.durationMinutes);
+        return '<label class="stay-edit">停留' +
+            '<input id="stay-hours-' + escapeHtml(item.id) + '" data-field="stay-hours" data-stop-id="' + escapeHtml(item.id) +
+            '" type="number" min="0" max="24" step="1" inputmode="numeric" aria-label="' + escapeHtml(item.name) +
+            ' 停留小時" value="' + String(stay.hours) + '">' +
+            "<span>小時</span>" +
+            '<input id="stay-minutes-' + escapeHtml(item.id) + '" data-field="stay-minutes" data-stop-id="' + escapeHtml(item.id) +
+            '" type="number" min="0" max="59" step="1" inputmode="numeric" aria-label="' + escapeHtml(item.name) +
+            ' 停留分鐘" value="' + String(stay.minutes) + '">' +
+            "<span>分鐘</span></label>";
+    }
     function renderStop(item, index, travelers, state, arrival, arrivalMinutes, pool) {
         const meta = PlannerFormat.placeMeta(item.type);
         const share = PlannerFormat.splitPerPerson(item.cost, travelers);
@@ -386,6 +403,8 @@
         const free = parts.free > 0
             ? renderFreeTime(arrivalMinutes + parts.stay, parts.free)
             : "";
+        const note = item.description.trim();
+        const desc = note === "" ? "" : '<p class="desc">' + escapeHtml(note) + "</p>";
         return '<li class="stop" data-stop-id="' + escapeHtml(item.id) + '"><div class="stop-shell">' +
             '<button type="button" class="drag-handle" aria-label="拖曳調整「' + escapeHtml(item.name) +
             '」的順序"><span aria-hidden="true">⋮⋮</span></button>' +
@@ -395,10 +414,13 @@
             '<div class="stop-top"><span class="type-icon" aria-hidden="true">' + meta.icon + "</span>" +
             "<div><p class=\"type-label\">" + escapeHtml(meta.label) + " · 第 " + String(index + 1) + " 站</p>" +
             "<h3>" + escapeHtml(item.name) + "</h3></div>" +
+            '<div class="card-actions">' +
+            '<button type="button" class="text-btn edit" data-action="edit-item" data-id="' + escapeHtml(item.id) +
+            '">編輯</button>' +
             '<button type="button" class="text-btn" data-action="' + (held ? "delete-held" : "delete-item") + '" data-index="' + String(index) +
-            '" aria-label="刪除 ' + escapeHtml(item.name) + '">刪除</button></div>' +
-            '<p class="desc">' + escapeHtml(item.description) + "</p>" +
-            '<p class="meta">' + arrive + mealFlag + hoursFlag + "<span>停留 " + escapeHtml(PlannerFormat.formatDuration(parts.stay)) + "</span>" +
+            '" aria-label="刪除 ' + escapeHtml(item.name) + '">刪除</button></div></div>' +
+            desc +
+            '<p class="meta">' + arrive + mealFlag + hoursFlag + renderStayEditor(item) +
             "<span>全團 " + escapeHtml(PlannerFormat.formatMoney(item.cost)) + "</span>" +
             "<span>每人 " + escapeHtml(PlannerFormat.formatMoney(share)) + "</span></p>" +
             unmapped + "</article></div>" +
@@ -427,9 +449,10 @@
             const selected = state.addType === type ? " selected" : "";
             return '<option value="' + type + '"' + selected + ">" + escapeHtml(PlannerFormat.placeMeta(type).label) + "</option>";
         }).join("");
+        const editing = state.editItemId !== "";
         let position = "";
         let hint = "這天還沒有地點，會成為第 1 站。";
-        if (items.length > 0) {
+        if (!editing && items.length > 0) {
             const options = items.map(function (item, index) {
                 const selected = index === state.addAfter ? " selected" : "";
                 return '<option value="' + String(index) + '"' + selected + ">第 " + String(index + 1) + " 站 " +
@@ -439,17 +462,23 @@
                 '<select id="add-after" data-field="add-after">' + options + "</select></label>";
             hint = "會插在你選的那一站後面。新接上的交通會先依距離估算，接著改用實際路線。";
         }
+        if (editing)
+            hint = "會更新這一站的名稱、類型與說明。停留時間請直接改卡片上的小時與分鐘。";
+        const note = '<label class="field" for="add-note"><span>說明（可留空）</span>' +
+            '<textarea id="add-note" data-field="add-note" maxlength="300" placeholder="例如：備註、訂位資訊、注意事項">' +
+            escapeHtml(state.addNote) + "</textarea></label>";
         return '<div class="add-panel">' +
             renderError(state.error) +
             '<label class="field" for="add-name"><span>地點名稱</span>' +
             '<input id="add-name" data-field="add-name" type="text" maxlength="40" value="' + escapeHtml(state.addName) + '" placeholder="例如：東京車站"></label>' +
             '<label class="field" for="add-type"><span>類型</span>' +
             '<select id="add-type" data-field="add-type">' + typeOptions + "</select></label>" +
+            note +
             position +
             '<p class="hint">' + escapeHtml(hint) + "</p>" +
             '<div class="actions">' +
             '<button type="button" class="btn ghost" data-action="cancel-add">取消</button>' +
-            '<button type="button" class="btn primary" data-action="confirm-add">加入這天</button>' +
+            '<button type="button" class="btn primary" data-action="confirm-add">' + (editing ? "儲存修改" : "加入這天") + "</button>" +
             "</div></div>";
     }
     function demoNote(plan) {
@@ -580,7 +609,7 @@
     }
     function renderRideForm(state) {
         const draft = state.rideDraft;
-        const modes = ["flight", "train", "bus", "car", "ferry", "other"];
+        const modes = ["flight", "train", "hsr", "bus", "car", "ferry", "other"];
         const options = modes.map(function (mode) {
             const selected = draft.mode === mode ? " selected" : "";
             return '<option value="' + mode + '"' + selected + ">" +

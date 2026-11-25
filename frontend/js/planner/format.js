@@ -160,6 +160,8 @@
             return "✈️";
         if (mode === "train")
             return "🚄";
+        if (mode === "hsr")
+            return "🚄";
         if (mode === "bus")
             return "🚌";
         if (mode === "car")
@@ -173,6 +175,8 @@
             return "飛機";
         if (mode === "train")
             return "火車";
+        if (mode === "hsr")
+            return "高鐵";
         if (mode === "bus")
             return "巴士";
         if (mode === "car")

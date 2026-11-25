@@ -294,6 +294,7 @@
     if (ride.mode === "bus") return "巴士";
     if (ride.mode === "ferry") return "渡輪";
     if (ride.mode === "car") return "開車";
+    if (ride.mode === "hsr") return "高鐵";
     if (ride.mode === "train") {
       const note = ride.note || "";
       const text = (ride.from + " " + ride.to + " " + note).toLowerCase();

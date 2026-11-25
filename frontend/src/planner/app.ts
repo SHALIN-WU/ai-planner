@@ -114,6 +114,8 @@
     addOpen: false,
     addName: "",
     addType: "attraction",
+    addNote: "",
+    editItemId: "",
     addAfter: 0,
     stayOpen: false,
     stayDraft: emptyStay(),
@@ -176,6 +178,8 @@
     if (addName !== null) state.addName = addName;
     const addType = fieldValue("add-type");
     if (addType !== null && isPlaceType(addType)) state.addType = addType;
+    const addNote = fieldValue("add-note");
+    if (addNote !== null) state.addNote = addNote;
     const addAfter = fieldValue("add-after");
     if (addAfter !== null && /^\d+$/.test(addAfter)) state.addAfter = Number(addAfter);
     if (state.stayOpen) {
@@ -239,7 +243,7 @@
   }
 
   function isIntercityMode(value: string): value is IntercityMode {
-    return value === "flight" || value === "train" || value === "bus" || value === "car" || value === "ferry" || value === "other";
+    return value === "flight" || value === "train" || value === "hsr" || value === "bus" || value === "car" || value === "ferry" || value === "other";
   }
 
   function focusTarget(token: string): void {
@@ -4587,6 +4591,8 @@
     state.addOpen = true;
     state.addName = "";
     state.addType = "attraction";
+    state.addNote = "";
+    state.editItemId = "";
     state.addAfter = Math.max(0, day.items.length - 1);
     render("add-name");
   }
@@ -4594,14 +4600,40 @@
   function cancelAdd(): void {
     state.addOpen = false;
     state.addName = "";
+    state.addNote = "";
+    state.editItemId = "";
     state.error = "";
     render();
+  }
+
+  function findStop(id: string): ItineraryItem | null {
+    const onDay = findItem(id);
+    if (onDay) return onDay;
+    const held = state.plan && state.plan.unscheduled ? state.plan.unscheduled : [];
+    for (let index = 0; index < held.length; index += 1) {
+      const item = held[index];
+      if (item && item.id === id) return item;
+    }
+    return null;
+  }
+
+  function openEdit(id: string): void {
+    const item = findStop(id);
+    if (!item) return;
+    closeEditors();
+    state.addOpen = true;
+    state.editItemId = id;
+    state.addName = item.name;
+    state.addType = item.type;
+    state.addNote = item.description || "";
+    render("add-note");
   }
 
   function confirmAdd(): void {
     const day = activeDayPlan();
     if (!day) return;
     const name = state.addName.trim();
+    const note = state.addNote.trim();
     if (name === "") {
       state.error = "請填寫地點名稱。";
       render("form-error");
@@ -4612,18 +4644,75 @@
       render("form-error");
       return;
     }
-    insertStop(day.items, PlannerMock.makeCustomItem(name, state.addType, anchorForNewStop(day.items)), state.addAfter);
+    if (note.length > 300) {
+      state.error = "說明請留在 300 字以內。";
+      render("form-error");
+      return;
+    }
+    if (state.editItemId !== "") {
+      const item = findStop(state.editItemId);
+      if (!item) {
+        state.error = "找不到要修改的這一站。";
+        render("form-error");
+        return;
+      }
+      const previous = item.name;
+      item.name = name;
+      item.type = state.addType;
+      item.description = note;
+      if (item.location.name === previous) item.location.name = name;
+    } else {
+      const created = PlannerMock.makeCustomItem(name, state.addType, anchorForNewStop(day.items));
+      created.description = note;
+      insertStop(day.items, created, state.addAfter);
+    }
     state.addOpen = false;
     state.addName = "";
+    state.addNote = "";
+    state.editItemId = "";
     state.error = "";
     clearMoveUndo();
     saveResult();
     render();
   }
 
+  function readStayCount(input: HTMLInputElement, max: number): number | null {
+    const raw = input.value.trim();
+    if (!/^\d+$/.test(raw)) return null;
+    const value = Number(raw);
+    if (value > max) return null;
+    return value;
+  }
+
+  function applyStayEdit(target: HTMLInputElement): void {
+    const label = target.closest(".stay-edit");
+    if (!(label instanceof HTMLElement)) return;
+    const id = target.getAttribute("data-stop-id") || "";
+    const item = findStop(id);
+    if (!item) return;
+    const hoursInput = label.querySelector("[data-field='stay-hours']");
+    const minutesInput = label.querySelector("[data-field='stay-minutes']");
+    if (!(hoursInput instanceof HTMLInputElement) || !(minutesInput instanceof HTMLInputElement)) return;
+    const hours = readStayCount(hoursInput, 24);
+    const minutes = readStayCount(minutesInput, 59);
+    if (hours === null || minutes === null) {
+      render(target.id);
+      return;
+    }
+    const next = Math.min(24 * 60, hours * 60 + minutes);
+    const current = Number.isFinite(item.durationMinutes) ? Math.round(item.durationMinutes) : 0;
+    if (next === current) return;
+    item.durationMinutes = next;
+    item.baseDurationMinutes = next;
+    saveResult();
+    render(target.id);
+  }
+
   function closeEditors(): void {
     state.addOpen = false;
     state.addName = "";
+    state.addNote = "";
+    state.editItemId = "";
     state.stayOpen = false;
     state.rideOpen = false;
     state.legDraft = null;
@@ -5427,6 +5516,10 @@
       deleteItem(index);
       return;
     }
+    if (action === "edit-item") {
+      openEdit(button.getAttribute("data-id") || "");
+      return;
+    }
     if (action === "delete-held") {
       const index = readIndex(button);
       if (index === null) return;
@@ -5434,6 +5527,7 @@
       return;
     }
     if (action === "focus-stop" || action === "focus-stay") {
+      if (target.closest("input, select, textarea, label.stay-edit")) return;
       const id = button.getAttribute("data-stop-id");
       if (!id) return;
       focusStop(id);
@@ -5591,6 +5685,17 @@
       return;
     }
     syncAll();
+    if (target instanceof HTMLInputElement) {
+      const stayField = target.getAttribute("data-field");
+      if (stayField === "stay-hours" || stayField === "stay-minutes") {
+        if (event.type === "input" && event instanceof InputEvent) {
+          const kind = event.inputType;
+          if (kind === "insertText" || kind === "deleteContentBackward" || kind === "deleteContentForward" || kind === "insertCompositionText") return;
+        }
+        applyStayEdit(target);
+        return;
+      }
+    }
     if (!(target instanceof HTMLElement)) return;
     const field = target.getAttribute("data-field");
     if (event.type === "change" && field && field.indexOf("rate-") === 0) {
@@ -5624,6 +5729,14 @@
     }
     if (event.key === "Enter") {
       if (target instanceof HTMLTextAreaElement) return;
+      if (target instanceof HTMLInputElement) {
+        const stayField = target.getAttribute("data-field");
+        if (stayField === "stay-hours" || stayField === "stay-minutes") {
+          event.preventDefault();
+          applyStayEdit(target);
+          return;
+        }
+      }
       if (state.step === 1 && target.getAttribute("data-field") === "destination") {
         event.preventDefault();
         syncAll();

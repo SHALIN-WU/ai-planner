@@ -286,7 +286,7 @@ function readInput(body) {
   };
 }
 
-const INTERCITY_MODES = new Set(["flight", "train", "bus", "car", "ferry", "other"]);
+const INTERCITY_MODES = new Set(["flight", "train", "hsr", "bus", "car", "ferry", "other"]);
 
 function readProvidedStays(value) {
   if (value === undefined) return { stays: [] };
@@ -462,6 +462,7 @@ function ridesForDates(rides, dates) {
 
 function rideModeLabel(mode) {
   if (mode === "flight") return "飛機";
+  if (mode === "hsr") return "高鐵";
   if (mode === "train") return "新幹線或火車";
   if (mode === "bus") return "巴士";
   if (mode === "car") return "汽車";
